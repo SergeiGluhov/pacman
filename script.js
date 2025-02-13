@@ -66,6 +66,7 @@ class Game {
             // Можно добавить больше привидений
         ];
         this.score = 0;
+        this.lives = 3; // 3 жизни у Pac-Man
         this.lastTime = 0;
     }
 
@@ -88,6 +89,8 @@ class Game {
         }
         // Проверяем, не съел ли Pac-Man пеллету
         this.checkPellets();
+        // Проверяем столкновения с призраками
+        this.checkGhostCollisions();
     }
 
     checkPellets() {
@@ -103,6 +106,44 @@ class Game {
             this.score += 10;             // увеличиваем счет (например, на 10 очков)
         }
     }
+
+    checkGhostCollisions() {
+        // Перебираем всех призраков
+        for (let i = 0; i < this.ghosts.length; i++) {
+          const ghost = this.ghosts[i];
+          // Вычисляем центры Pac-Man и призрака
+          const pacCenterX = this.pacman.x + this.pacman.radius;
+          const pacCenterY = this.pacman.y + this.pacman.radius;
+          const ghostCenterX = ghost.x + ghost.radius;
+          const ghostCenterY = ghost.y + ghost.radius;
+          
+          const dx = pacCenterX - ghostCenterX;
+          const dy = pacCenterY - ghostCenterY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          // Если расстояние меньше суммы радиусов (с небольшим запасом), считаем, что произошло столкновение
+          if (distance < this.pacman.radius + ghost.radius - 2) {
+            // Обрабатываем столкновение:
+            this.lives--;  // отнимаем жизнь у Pac-Man
+            this.resetPacman(); // сбрасываем позицию Pac-Man
+            
+            // Призрак "исчезает": удаляем его из массива
+            this.ghosts.splice(i, 1);
+            i--;
+            
+            // Если жизни закончились, можно реализовать логику Game Over
+            break;
+          }
+        }
+      }
+
+      resetPacman() {
+        // Устанавливаем Pac-Man в его начальную позицию и обнуляем направления
+        this.pacman.x = 1 * CELL_SIZE;
+        this.pacman.y = 3 * CELL_SIZE;
+        this.pacman.direction = { x: 0, y: 0 };
+        this.pacman.nextDirection = { x: 0, y: 0 };
+      }
 
     render() {
         // Очистка холста
@@ -122,7 +163,8 @@ class Game {
     drawUI() {
         this.ctx.fillStyle = 'white';
         this.ctx.font = '16px Arial';
-        this.ctx.fillText("Score: " + this.score, 0, this.canvas.height -10);
+        this.ctx.fillText("Score: " + this.score, 0, this.canvas.height - 10);
+        this.ctx.fillText("Lives: " + this.lives, this.canvas.width - 60, this.canvas.height - 10);
     }
 }
 

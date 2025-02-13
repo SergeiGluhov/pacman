@@ -14,7 +14,7 @@ const BOARD_ROWS = 31;
 // ];
 
 // Определяем карту в виде массива строк (каждая строка содержит 28 символов)
-const mazeString = [
+const level1String = [
     "1111111111111111111111111111",
     "1222222222222112222222222221",
     "1211111111112111211111111121",
@@ -47,16 +47,89 @@ const mazeString = [
     "1111111111111111111111111111"
 ];
 
-// Преобразуем массив строк в двумерный массив чисел
-const simpleMap = mazeString.map(row => row.split("").map(Number));
+const level2String = [
+    "1111111111111111111111111111",
+    "1222222222222222222222222221",
+    "1211111211111111112111111121",
+    "1211111212222222222111111121",
+    "1222221212222112222212222221",
+    "1211111212222112222211111111",
+    "1211111212222222222211111111",
+    "1222221211111111112112222221",
+    "1211111211111111112111111121",
+    "1211111212222222222111111121",
+    "1222221212222222222212222221",
+    "1211111211111111112111111121",
+    "1211111211111111112111111121",
+    "1222222222222112222222222221",
+    "1111111111112112111111111111",
+    "1111111111112112111111111111",
+    "1222222222222222222222222221",
+    "1211111111111111111111111121",
+    "1211111111111111111111111121",
+    "1222222222222112222222222221",
+    "1211111211112111112111111121",
+    "1211111211112111112111111121",
+    "1222221212222222222212222221",
+    "1211111211111111112111111121",
+    "1211111211111111112111111121",
+    "1222222222222222222222222221",
+    "1211111111112112111111111121",
+    "1211111111112112111111111121",
+    "1222222222222112222222222221",
+    "1111111111111111111111111111",
+    "1111111111111111111111111111"
+  ];
 
+  const level3String = [
+    "1111111111111111111111111111", // 0
+    "1222222222222222222222222221", // 1
+    "1211111211111111112111111121", // 2
+    "1211111212222222222111111121", // 3
+    "1222221212222112222212222221", // 4
+    "1211111212222112222211111111", // 5
+    "1211111212222222222211111111", // 6
+    "1222221211111111112112222221", // 7
+    "1211111211111111112111111121", // 8
+    "1211111212222222222111111121", // 9
+    "1222221212222222222212222221", // 10
+    "1211111211111111112111111121", // 11
+    "1211111211111111112111111121", // 12
+    "1222222222222112222222222221", // 13
+    "1111111111112112111111111111", // 14
+    // Строка перехода: левая и правая части отделены стенами, а в середине (12 символов) – проход с пеллетами.
+    "1111111122222222222211111111", // 15
+    "1222222222222222222222222221", // 16
+    "1211121112111211121111211121", // 17
+    "1211111221122211211111111111", // 18
+    "1222222222222222222222222221", // 19
+    "1212222222222222222222222121", // 20
+    "1212112112112112112112112111", // 21
+    "1211111111111111111111111121", // 22
+    "1222222222222222222222222221", // 23
+    "1211122111122111122111122111", // 24
+    "1212211221122112211221122111", // 25
+    "1222222222222222222222222221", // 26
+    "1211111111111111111111111121", // 27
+    "1212121212121212121212121211", // 28
+    "1222222222222222222222222221", // 29
+    "1111111111111111111111111111"  // 30
+  ];
+
+// Глобальная переменная для объекта игры
+let game;
+
+// Функция для преобразования строки в массив чисел
+function parseMap(mapStringArray) {
+    return mapStringArray.map(row => row.split("").map(Number));
+}
 
 // Основной класс игры, который управляет обновлением и отрисовкой
 class Game {
-    constructor(canvas, ctx) {
+    constructor(canvas, ctx, levelMap) {
         this.canvas = canvas;
         this.ctx = ctx;
-        this.map = new GameMap();
+        this.map = new GameMap(levelMap);
         // Задаём стартовые позиции, подбирайте их под вашу карту
         this.pacman = new PacMan(1 * CELL_SIZE, 3 * CELL_SIZE);
         this.ghosts = [
@@ -68,13 +141,17 @@ class Game {
         this.score = 0;
         this.lives = 3; // 3 жизни у Pac-Man
         this.lastTime = 0;
+        this.running = true; // Флаг работы игрового цикла
+
     }
 
     start() {
+        this.running = true;
         requestAnimationFrame(this.gameLoop.bind(this));
     }
 
     gameLoop(timestamp) {
+        if (!this.running) return; // Если игра остановлена, выходим из цикла
         const deltaTime = timestamp - this.lastTime;
         this.lastTime = timestamp;
         this.update(deltaTime);
@@ -110,40 +187,51 @@ class Game {
     checkGhostCollisions() {
         // Перебираем всех призраков
         for (let i = 0; i < this.ghosts.length; i++) {
-          const ghost = this.ghosts[i];
-          // Вычисляем центры Pac-Man и призрака
-          const pacCenterX = this.pacman.x + this.pacman.radius;
-          const pacCenterY = this.pacman.y + this.pacman.radius;
-          const ghostCenterX = ghost.x + ghost.radius;
-          const ghostCenterY = ghost.y + ghost.radius;
-          
-          const dx = pacCenterX - ghostCenterX;
-          const dy = pacCenterY - ghostCenterY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          // Если расстояние меньше суммы радиусов (с небольшим запасом), считаем, что произошло столкновение
-          if (distance < this.pacman.radius + ghost.radius - 2) {
-            // Обрабатываем столкновение:
-            this.lives--;  // отнимаем жизнь у Pac-Man
-            this.resetPacman(); // сбрасываем позицию Pac-Man
-            
-            // Призрак "исчезает": удаляем его из массива
-            this.ghosts.splice(i, 1);
-            i--;
-            
-            // Если жизни закончились, можно реализовать логику Game Over
-            break;
-          }
-        }
-      }
+            const ghost = this.ghosts[i];
+            // Вычисляем центры Pac-Man и призрака
+            const pacCenterX = this.pacman.x + this.pacman.radius;
+            const pacCenterY = this.pacman.y + this.pacman.radius;
+            const ghostCenterX = ghost.x + ghost.radius;
+            const ghostCenterY = ghost.y + ghost.radius;
 
-      resetPacman() {
+            const dx = pacCenterX - ghostCenterX;
+            const dy = pacCenterY - ghostCenterY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Если расстояние меньше суммы радиусов (с небольшим запасом), считаем, что произошло столкновение
+            if (distance < this.pacman.radius + ghost.radius - 2) {
+                // Обрабатываем столкновение:
+                this.lives--;  // отнимаем жизнь у Pac-Man
+                if (this.lives <= 0) {
+                    this.gameOver();
+                } else {
+                    this.resetPacman();
+                    // Можно также сбросить или переместить столкнувшегося призрака
+                    this.ghosts.splice(i, 1);
+                    i--;
+                }
+
+                // Если жизни закончились, можно реализовать логику Game Over
+                break;
+            }
+        }
+    }
+
+    resetPacman() {
         // Устанавливаем Pac-Man в его начальную позицию и обнуляем направления
         this.pacman.x = 1 * CELL_SIZE;
         this.pacman.y = 3 * CELL_SIZE;
         this.pacman.direction = { x: 0, y: 0 };
         this.pacman.nextDirection = { x: 0, y: 0 };
-      }
+    }
+
+    gameOver() {
+        this.running = false; // Останавливаем игровой цикл
+        // Отображаем меню Game Over
+        document.getElementById('gameContainer').style.display = 'none';
+        document.getElementById('gameOverMenu').style.display = 'block';
+        document.getElementById('finalScore').textContent = "Ваш счет: " + this.score;
+    }
 
     render() {
         // Очистка холста
@@ -170,8 +258,8 @@ class Game {
 
 // Класс для карты игры
 class GameMap {
-    constructor() {
-        this.layout = simpleMap;
+    constructor(layout) {
+        this.layout = layout;
     }
 
     draw(ctx) {
@@ -212,7 +300,7 @@ class PacMan {
         this.y = y;
         this.direction = { x: 0, y: 0 };     // Текущее направление движения
         this.nextDirection = { x: 0, y: 0 };  // Запрошенное направление (при нажатии клавиши)
-        this.speed = 100;                   // Скорость в пикселях в секунду
+        this.speed = 150;                   // Скорость в пикселях в секунду
         this.radius = CELL_SIZE / 2;        // Радиус для отрисовки (занимает всю клетку)
         this.mouthAngle = 0.25;             // Угол "открытости" рта (значение от 0 до 1)
 
@@ -222,7 +310,7 @@ class PacMan {
     }
 
     update(deltaTime, map) {
-        const distance = (this.speed * deltaTime) / 1000;
+        const distance = (this.speed * deltaTime) / 1560;
 
         // Если запрошено новое направление (и оно отличается от текущего) и движение в нём возможно...
         if ((this.nextDirection.x !== 0 || this.nextDirection.y !== 0) &&
@@ -445,30 +533,76 @@ class Ghost {
     }
 }
 
+// Обработчик меню
+document.querySelectorAll('#menu button').forEach(button => {
+    button.addEventListener('click', () => {
+        // Скрываем меню и показываем контейнер с игрой
+        document.getElementById('menu').style.display = 'none';
+        document.getElementById('gameOverMenu').style.display = 'none';
+        document.getElementById('gameContainer').style.display = 'block';
 
-// Инициализация Canvas и запуск игры
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+        // Определяем выбранный уровень
+        const level = button.getAttribute('data-level');
+        let selectedMap;
+        if (level === "1") {
+            selectedMap = parseMap(level1String);
+        } else if (level === "2") {
+            selectedMap = parseMap(level2String);
+        } else if (level === "3") {
+            selectedMap = parseMap(level3String);
+        }
 
-const game = new Game(canvas, ctx);
-game.start();
+        // Инициализируем игру с выбранной картой
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
 
-// Обработка нажатия клавиш для управления Pac-Man
-document.addEventListener('keydown', (event) => {
-    console.log("Нажата клавиша:", event.key);
+        // Обработка нажатия клавиш для управления Pac-Man
+        document.addEventListener('keydown', (event) => {
+            console.log("Нажата клавиша:", event.key);
 
-    switch (event.key) {
-        case 'ArrowUp':
-            game.pacman.nextDirection = { x: 0, y: -1 };
-            break;
-        case 'ArrowDown':
-            game.pacman.nextDirection = { x: 0, y: 1 };
-            break;
-        case 'ArrowLeft':
-            game.pacman.nextDirection = { x: -1, y: 0 };
-            break;
-        case 'ArrowRight':
-            game.pacman.nextDirection = { x: 1, y: 0 };
-            break;
-    }
+            switch (event.key) {
+                case 'ArrowUp':
+                    game.pacman.nextDirection = { x: 0, y: -1 };
+                    break;
+                case 'ArrowDown':
+                    game.pacman.nextDirection = { x: 0, y: 1 };
+                    break;
+                case 'ArrowLeft':
+                    game.pacman.nextDirection = { x: -1, y: 0 };
+                    break;
+                case 'ArrowRight':
+                    game.pacman.nextDirection = { x: 1, y: 0 };
+                    break;
+            }
+        });
+
+        // Обработчики для Game Over меню
+        document.getElementById('restartGame').addEventListener('click', () => {
+            // Перезапускаем игру с текущей картой и уровнем, сбрасывая счет и жизни
+            if (game) {
+                game.score = 0;
+                game.lives = 3;
+                // Можно также восстановить исходное состояние карты, если нужно:
+                // Например, запустить новый parseMap(...) для текущего уровня.
+                // Здесь для простоты запускаем игру с тем же объектом карты.
+                game.resetPacman();
+                // Если нужно, можно добавить восстановление призраков и пеллет
+                document.getElementById('gameOverMenu').style.display = 'none';
+                document.getElementById('gameContainer').style.display = 'block';
+                game.running = true;
+                game.lastTime = performance.now();
+                game.start();
+            }
+        });
+
+        document.getElementById('selectLevel').addEventListener('click', () => {
+            // Возвращаемся к главному меню
+            document.getElementById('gameOverMenu').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'none';
+            document.getElementById('menu').style.display = 'block';
+        });
+
+        const game = new Game(canvas, ctx, selectedMap);
+        game.start();
+    });
 });

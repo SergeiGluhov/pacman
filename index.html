@@ -8,7 +8,25 @@
 </head>
 
 <body>
-    <canvas id="gameCanvas" width="448" height="516"></canvas>
+    <div id="menu">
+        <h1>Выберите уровень</h1>
+        <button data-level="1">Уровень 1</button>
+        <button data-level="2">Уровень 2</button>
+        <button data-level="3">Уровень 3</button>
+    </div>
+
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="448" height="516"></canvas>
+    </div>
+
+    <!-- Меню Game Over -->
+    <div id="gameOverMenu" >
+        <h1>Конец игры</h1>
+        <p id="finalScore"></p>
+        <button id="restartGame">Начать сначала</button>
+        <button id="selectLevel">Выбрать уровень</button>
+    </div>
+
     <script src="script.js"></script>
 </body>
 

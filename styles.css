@@ -1,11 +1,38 @@
 body {
     background: #000;
     margin: 0;
-    overflow: hidden;
+    font-family: Arial, sans-serif;
+    color: white;
+    text-align: center;
+}
+
+#menu {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#gameOverMenu{
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#menu button {
+    margin: 10px;
+    padding: 10px 20px;
+    font-size: 18px;
+}
+
+#gameContainer {
+    display: none;
 }
 
 canvas {
+    background: #000;
     display: block;
     margin: 0 auto;
-    background: #000;
 }

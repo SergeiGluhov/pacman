@@ -1,7 +1,13 @@
 "use strict";
 
-// Глобальная переменная для игры
+// Функция для преобразования массива строк в двумерный массив чисел
+function parseMap(mapStringArray) {
+  return mapStringArray.map(row => row.split("").map(Number));
+}
+
+// Глобальные переменные
 let game;
+let currentMap;
 
 // --- Константы ---
 const CELL_SIZE = 16;
@@ -9,6 +15,7 @@ const BOARD_COLS = 28;
 const BOARD_ROWS = 31;
 
 // --- Уровни ---
+// Уровень 1 (31 строка, 28 символов)
 const level1String = [
   "1111111111111111111111111111",
   "1222222222222112222222222221",
@@ -110,9 +117,9 @@ const level3String = [
   "1111111111111111111111111111"
 ];
 
-function parseMap(mapStringArray) {
-  return mapStringArray.map(row => row.split("").map(Number));
-}
+const parsedLevel1 = parseMap(level1String);
+const parsedLevel2 = parseMap(level2String);
+const parsedLevel3 = parseMap(level3String);
 
 // --- Класс GameMap ---
 class GameMap {
@@ -159,11 +166,10 @@ class PacMan {
     this.mouthAngle = 0.25;
     this.collisionSize = CELL_SIZE * 0.8;
     this.collisionOffset = (CELL_SIZE - this.collisionSize) / 2;
-    // Запоминаем клетку, в центре которой Pac-Man повернул
     this.lastTurnTile = null;
   }
   update(deltaTime, map) {
-    const distance = (this.speed * deltaTime) / 2000;
+    const distance = (this.speed * deltaTime) / 1000;
     if ((this.nextDirection.x !== 0 || this.nextDirection.y !== 0) &&
         (this.nextDirection.x !== this.direction.x || this.nextDirection.y !== this.direction.y) &&
         this.canMove(this.nextDirection, map)) {
@@ -223,173 +229,53 @@ class PacMan {
   }
 }
 
-// --- Класс Ghost с "памятью" поворотов и случайным отклонением от прямой ---
+// --- Новый класс Ghost ---
+// Призрак всегда находится в центре клетки. При достижении центра выбирает новое направление.
+// Если рядом находится Pac-Man и он виден (без преград по строке или столбцу), то выбирается направление к нему.
+// Если призрак слишком долго двигается в одном направлении (зацикливается), он принудительно выбирает случайное направление.
 class Ghost {
   constructor(tileX, tileY, color, map) {
-    // Текущая клетка (центр которой служит отправной точкой)
     this.tileX = tileX;
     this.tileY = tileY;
     this.color = color;
-    this.speed = 80; // скорость (пикселей/сек)
-    // Позиция призрака – центр клетки
-    this.position = {
-      x: tileX * CELL_SIZE + CELL_SIZE / 2,
-      y: tileY * CELL_SIZE + CELL_SIZE / 2
-    };
-    // "Память" поворотов Pac-Man (массив объектов с полями col и row)
-    this.memoryPath = [];
-    // Время последнего обнаружения Pac-Man
-    this.lastSeen = 0;
-    // Выбираем случайное начальное направление из доступных
-    const directions = [
+    this.map = map;
+    this.speed = 80;
+    this.radius = CELL_SIZE * 0.5;
+    this.x = this.tileX * CELL_SIZE + CELL_SIZE / 2;
+    this.y = this.tileY * CELL_SIZE + CELL_SIZE / 2;
+    this.straightCount = 0;
+    this.direction = this.getRandomDirection();
+    this.chooseTarget();
+  }
+  getAvailableDirections() {
+    const dirs = [
       { dx: 1, dy: 0 },
       { dx: -1, dy: 0 },
       { dx: 0, dy: 1 },
       { dx: 0, dy: -1 }
     ];
-    let available = directions.filter(d => {
+    let available = [];
+    for (let d of dirs) {
       const nx = this.tileX + d.dx;
       const ny = this.tileY + d.dy;
-      return ny >= 0 && ny < map.layout.length &&
-             nx >= 0 && nx < map.layout[0].length &&
-             map.layout[ny][nx] !== 1;
-    });
-    this.direction = available[Math.floor(Math.random() * available.length)];
-    this.setTarget();
+      if (ny >= 0 && ny < this.map.layout.length &&
+          nx >= 0 && nx < this.map.layout[0].length &&
+          this.map.layout[ny][nx] !== 1) {
+        available.push(d);
+      }
+    }
+    return available;
   }
-
-  // Вычисляем целевую клетку, куда движется призрак
-  setTarget() {
+  getRandomDirection() {
+    let available = this.getAvailableDirections();
+    if (available.length === 0) return { dx: 0, dy: 0 };
+    return available[Math.floor(Math.random() * available.length)];
+  }
+  chooseTarget() {
     this.targetTileX = this.tileX + this.direction.dx;
     this.targetTileY = this.tileY + this.direction.dy;
   }
-
-  // Обновление позиции призрака
-  update(deltaTime, map, pacman) {
-    const targetCenter = {
-      x: this.targetTileX * CELL_SIZE + CELL_SIZE / 2,
-      y: this.targetTileY * CELL_SIZE + CELL_SIZE / 2
-    };
-    const moveDist = (this.speed * deltaTime) / 1000;
-    const dx = targetCenter.x - this.position.x;
-    const dy = targetCenter.y - this.position.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (moveDist >= dist) {
-      // Дошли до центра следующей клетки
-      this.position = targetCenter;
-      this.tileX = this.targetTileX;
-      this.tileY = this.targetTileY;
-      // Выбираем новое направление с учетом запомненных поворотов и случайного отклонения
-      this.chooseDirection(map, pacman);
-      this.setTarget();
-    } else {
-      const nx = dx / dist;
-      const ny = dy / dist;
-      this.position.x += nx * moveDist;
-      this.position.y += ny * moveDist;
-    }
-  }
-
-  // Выбор направления в узле
-  chooseDirection(map, pacman) {
-    const directions = [
-      { dx: 1, dy: 0 },
-      { dx: -1, dy: 0 },
-      { dx: 0, dy: 1 },
-      { dx: 0, dy: -1 }
-    ];
-    // Собираем доступные направления (соседние клетки, не являющиеся стенами)
-    let available = directions.filter(d => {
-      const nx = this.tileX + d.dx;
-      const ny = this.tileY + d.dy;
-      return ny >= 0 && ny < map.layout.length &&
-             nx >= 0 && nx < map.layout[0].length &&
-             map.layout[ny][nx] !== 1;
-    });
-
-    const now = performance.now();
-    // Если призрак видит Pac-Man, обновляем время обнаружения и запоминаем поворот
-    if (pacman && this.canSeePacman(pacman, map)) {
-      this.lastSeen = now;
-      if (pacman.lastTurnTile) {
-        let exists = this.memoryPath.some(tile =>
-          tile.col === pacman.lastTurnTile.col && tile.row === pacman.lastTurnTile.row
-        );
-        if (!exists && (pacman.lastTurnTile.col !== this.tileX || pacman.lastTurnTile.row !== this.tileY)) {
-          this.memoryPath.push({ col: pacman.lastTurnTile.col, row: pacman.lastTurnTile.row });
-        }
-      }
-    } else {
-      // Если призрак не видит Pac-Man более 2 секунд, очищаем память
-      if (now - this.lastSeen > 2000) {
-        this.memoryPath = [];
-      }
-    }
-
-    // Определяем целевую клетку для погони:
-    // Если память не пуста – цель берём из памяти (первая записанная точка)
-    let target;
-    if (this.memoryPath.length > 0) {
-      target = this.memoryPath[0];
-      if (this.tileX === target.col && this.tileY === target.row) {
-        this.memoryPath.shift();
-        target = this.memoryPath.length > 0
-          ? this.memoryPath[0]
-          : (pacman ? {
-              col: Math.floor((pacman.x + pacman.radius) / CELL_SIZE),
-              row: Math.floor((pacman.y + pacman.radius) / CELL_SIZE)
-            } : null);
-      }
-    } else if (pacman && this.canSeePacman(pacman, map)) {
-      target = {
-        col: Math.floor((pacman.x + pacman.radius) / CELL_SIZE),
-        row: Math.floor((pacman.y + pacman.radius) / CELL_SIZE)
-      };
-    }
-
-    if (target) {
-      // Из доступных направлений выбираем то, которое минимизирует расстояние до цели
-      let bestDir = available[0];
-      let bestDist = Infinity;
-      for (let d of available) {
-        const candidateX = this.tileX + d.dx;
-        const candidateY = this.tileY + d.dy;
-        const dx = target.col - candidateX;
-        const dy = target.row - candidateY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestDir = d;
-        }
-      }
-      this.direction = bestDir;
-      return;
-    }
-
-    // Если ни памяти, ни видимости нет:
-    // Исключаем обратное направление, если есть другие варианты
-    const reverse = { dx: -this.direction.dx, dy: -this.direction.dy };
-    let nonReverse = available.filter(d => !(d.dx === reverse.dx && d.dy === reverse.dy));
-    if (nonReverse.length > 0) {
-      available = nonReverse;
-    }
-    // Если текущее направление доступно, иногда (с вероятностью 30%) выбираем альтернативное направление
-    if (available.some(d => d.dx === this.direction.dx && d.dy === this.direction.dy)) {
-      if (Math.random() < 0.3) {
-        let alternatives = available.filter(d => !(d.dx === this.direction.dx && d.dy === this.direction.dy));
-        if (alternatives.length > 0) {
-          this.direction = alternatives[Math.floor(Math.random() * alternatives.length)];
-          return;
-        }
-      }
-      return;
-    }
-    // Иначе выбираем случайное направление из оставшихся
-    this.direction = available[Math.floor(Math.random() * available.length)];
-  }
-
-  // Проверка видимости Pac-Man: призрак видит его, если они в одной строке или столбце без преград
-  canSeePacman(pacman, map) {
+  canSeePacman(pacman) {
     const ghostTileX = this.tileX;
     const ghostTileY = this.tileY;
     const pacTileX = Math.floor((pacman.x + pacman.radius) / CELL_SIZE);
@@ -398,24 +284,74 @@ class Ghost {
       const minX = Math.min(ghostTileX, pacTileX);
       const maxX = Math.max(ghostTileX, pacTileX);
       for (let x = minX + 1; x < maxX; x++) {
-        if (map.layout[ghostTileY][x] === 1) return false;
+        if (this.map.layout[ghostTileY][x] === 1) return false;
       }
       return true;
     } else if (ghostTileX === pacTileX) {
       const minY = Math.min(ghostTileY, pacTileY);
       const maxY = Math.max(ghostTileY, pacTileY);
       for (let y = minY + 1; y < maxY; y++) {
-        if (map.layout[y][ghostTileX] === 1) return false;
+        if (this.map.layout[y][ghostTileX] === 1) return false;
       }
       return true;
     }
     return false;
   }
-
+  chooseDirection(pacman) {
+    let available = this.getAvailableDirections();
+    if (this.direction.dx !== 0 || this.direction.dy !== 0) {
+      let nonReverse = available.filter(d => !(d.dx === -this.direction.dx && d.dy === -this.direction.dy));
+      if (nonReverse.length > 0) {
+        available = nonReverse;
+      }
+    }
+    if (pacman && this.canSeePacman(pacman)) {
+      const pacTileX = Math.floor((pacman.x + pacman.radius) / CELL_SIZE);
+      const pacTileY = Math.floor((pacman.y + pacman.radius) / CELL_SIZE);
+      for (let d of available) {
+        if (this.tileX + d.dx === pacTileX && this.tileY + d.dy === pacTileY) {
+          this.direction = d;
+          this.straightCount = 0;
+          this.chooseTarget();
+          return;
+        }
+      }
+    }
+    let canContinue = available.some(d => d.dx === this.direction.dx && d.dy === this.direction.dy);
+    if (canContinue && Math.random() < 0.7 && this.straightCount < 3) {
+      this.straightCount++;
+      this.chooseTarget();
+      return;
+    }
+    this.direction = available[Math.floor(Math.random() * available.length)];
+    this.straightCount = 0;
+    this.chooseTarget();
+  }
+  update(deltaTime, map, pacman) {
+    const targetCenter = {
+      x: this.targetTileX * CELL_SIZE + CELL_SIZE / 2,
+      y: this.targetTileY * CELL_SIZE + CELL_SIZE / 2
+    };
+    const currentCenter = { x: this.x, y: this.y };
+    const dx = targetCenter.x - currentCenter.x;
+    const dy = targetCenter.y - currentCenter.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const moveDist = (this.speed * deltaTime) / 1000;
+    if (moveDist >= dist) {
+      this.x = targetCenter.x;
+      this.y = targetCenter.y;
+      this.tileX = this.targetTileX;
+      this.tileY = this.targetTileY;
+      this.chooseDirection(pacman);
+    } else {
+      this.x += (dx / dist) * moveDist;
+      this.y += (dy / dist) * moveDist;
+    }
+  }
   draw(ctx) {
     ctx.fillStyle = this.color;
     ctx.beginPath();
-    ctx.arc(this.position.x, this.position.y, CELL_SIZE / 2 - 1, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, this.radius - 1, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -473,12 +409,12 @@ class Game {
       const ghost = this.ghosts[i];
       const pacCenterX = this.pacman.x + this.pacman.radius;
       const pacCenterY = this.pacman.y + this.pacman.radius;
-      const ghostCenterX = ghost.position.x;
-      const ghostCenterY = ghost.position.y;
+      const ghostCenterX = ghost.x;
+      const ghostCenterY = ghost.y;
       const dx = pacCenterX - ghostCenterX;
       const dy = pacCenterY - ghostCenterY;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance < this.pacman.radius + CELL_SIZE/2 - 2) {
+      if (distance < this.pacman.radius + ghost.radius - 2) {
         this.lives--;
         if (this.lives <= 0) {
           this.gameOver();
@@ -492,13 +428,11 @@ class Game {
   resolveGhostConflicts() {
     let occupied = new Set();
     for (let ghost of this.ghosts) {
-      let tileCol = ghost.tileX;
-      let tileRow = ghost.tileY;
-      let key = tileCol + "," + tileRow;
+      let key = ghost.tileX + "," + ghost.tileY;
       if (occupied.has(key)) {
-        ghost.chooseDirection(this.map, this.pacman);
-        ghost.position.x += Math.random() * 4 - 2;
-        ghost.position.y += Math.random() * 4 - 2;
+        ghost.chooseDirection(this.pacman);
+        ghost.x += Math.random() * 4 - 2;
+        ghost.y += Math.random() * 4 - 2;
       } else {
         occupied.add(key);
       }
@@ -533,7 +467,70 @@ class Game {
   }
 }
 
-// --- Глобальный обработчик клавиатуры ---
+// --- Мобильное управление ---
+// Добавляем кнопки управления для сенсорных устройств внутрь #gameContainer
+function setupTouchControls() {
+  const controlsHTML = `
+    <div id="touchControls">
+      <button id="upButton">↑</button>
+      <div>
+        <button id="leftButton">←</button>
+        <button id="downButton">↓</button>
+        <button id="rightButton">→</button>
+      </div>
+    </div>
+  `;
+  const gameContainer = document.getElementById("gameContainer");
+  if (gameContainer) {
+    gameContainer.insertAdjacentHTML("beforeend", controlsHTML);
+  }
+  
+  const upButton = document.getElementById("upButton");
+  const downButton = document.getElementById("downButton");
+  const leftButton = document.getElementById("leftButton");
+  const rightButton = document.getElementById("rightButton");
+
+  if (upButton) {
+    upButton.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      if (game && game.pacman) game.pacman.nextDirection = { x: 0, y: -1 };
+    });
+    upButton.addEventListener("click", () => {
+      if (game && game.pacman) game.pacman.nextDirection = { x: 0, y: -1 };
+    });
+  }
+  if (downButton) {
+    downButton.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      if (game && game.pacman) game.pacman.nextDirection = { x: 0, y: 1 };
+    });
+    downButton.addEventListener("click", () => {
+      if (game && game.pacman) game.pacman.nextDirection = { x: 0, y: 1 };
+    });
+  }
+  if (leftButton) {
+    leftButton.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      if (game && game.pacman) game.pacman.nextDirection = { x: -1, y: 0 };
+    });
+    leftButton.addEventListener("click", () => {
+      if (game && game.pacman) game.pacman.nextDirection = { x: -1, y: 0 };
+    });
+  }
+  if (rightButton) {
+    rightButton.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      if (game && game.pacman) game.pacman.nextDirection = { x: 1, y: 0 };
+    });
+    rightButton.addEventListener("click", () => {
+      if (game && game.pacman) game.pacman.nextDirection = { x: 1, y: 0 };
+    });
+  }
+}
+
+window.addEventListener("load", setupTouchControls);
+
+// --- Обработчики клавиатуры ---
 document.addEventListener('keydown', (event) => {
   if (!game || !game.pacman) return;
   switch (event.key) {
@@ -567,6 +564,7 @@ document.querySelectorAll('#menu button').forEach(button => {
     } else if (level === "3") {
       selectedMap = parseMap(level3String);
     }
+    currentMap = JSON.parse(JSON.stringify(selectedMap));;
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     game = new Game(canvas, ctx, selectedMap);
@@ -578,11 +576,12 @@ document.getElementById('restartGame').addEventListener('click', () => {
   if (game) {
     game.score = 0;
     game.lives = 3;
-    game.resetPacman();
+    // Создаем новый экземпляр игры с сохраненной текущей картой
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    game = new Game(canvas, ctx, currentMap);
     document.getElementById('gameOverMenu').style.display = 'none';
     document.getElementById('gameContainer').style.display = 'block';
-    game.running = true;
-    game.lastTime = performance.now();
     game.start();
   }
 });

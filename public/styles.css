@@ -1,56 +1,111 @@
+/* 
+  styles.css
+  Стили для меню, игры, модальных окон и т.д.
+*/
+
+/* Сбрасываем отступы, задаём фон */
 body {
     background: #000;
     margin: 0;
     font-family: Arial, sans-serif;
     color: white;
     text-align: center;
-}
-
-#menu {
+  }
+  
+  /* Главное меню (отображается по умолчанию) */
+  #menu {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-}
-
-#gameOverMenu {
-    display: none;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-
-#menu button {
+  }
+  
+  /* Кнопки в главном меню */
+  #menu button {
     margin: 10px;
     padding: 10px 20px;
     font-size: 18px;
-}
-
-#gameContainer {
+  }
+  
+  /* Контейнер игры (по умолчанию скрыт) */
+  #gameContainer {
     display: none;
-}
-
-canvas {
+  }
+  
+  /* Сам холст (canvas) для игры */
+  canvas {
     background: #000;
     display: block;
     margin: 0 auto;
-}
-
-#touchControls {
+  }
+  
+  /* Меню «Конец игры» (gameOverMenu) */
+  #gameOverMenu {
+    display: none; /* скрыто до окончания игры */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  
+  /* Меню «Уровень пройден» (levelCompleteMenu) */
+  #levelCompleteMenu {
+    display: none; /* скрыто, пока уровень не будет пройден */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  
+  /* Модальное окно «Информация» (полупрозрачный оверлей) */
+  .modal {
+    display: none;        /* скрыто по умолчанию */
+    position: fixed;      /* фиксированное, поверх */
+    z-index: 9999;        /* высокий z-index */
+    left: 0; 
+    top: 0; 
+    width: 100%; 
+    height: 100%;
+    background-color: rgba(0,0,0,0.5); /* тёмный полупрозрачный фон */
+  }
+  
+  /* Внутренний блок окна */
+  .modal-content {
+    background-color: #222;
+    margin: 15% auto;
+    padding: 20px;
+    width: 300px;
+    border-radius: 8px;
+    position: relative;
+  }
+  
+  /* Кнопка (крестик) для закрытия модального окна */
+  .closeModal {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    cursor: pointer;
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+  }
+  
+  /* Кнопки мобильного управления (добавляются через скрипт) */
+  #touchControls {
     position: fixed;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
     text-align: center;
-}
-
-#touchControls button {
-    width: 150px;
-    height: 150px;
+    z-index: 1000;
+  }
+  #touchControls button {
+    width: 60px;
+    height: 60px;
     font-size: 24px;
     margin: 5px;
     border-radius: 10px;
-    background-color: rgba(255, 255, 255, 0.7);
+    background-color: rgba(255,255,255,0.7);
     border: none;
-}
+  }
+  

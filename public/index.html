@@ -1,33 +1,54 @@
 <!DOCTYPE html>
 <html lang="ru">
-
 <head>
-    <meta charset="UTF-8">
-    <title>Pac-Man</title>
-    <link rel="stylesheet" href="styles.css" />
+  <meta charset="UTF-8">
+  <title>Pac-Man</title>
+  <!-- Подключаем основной CSS -->
+  <link rel="stylesheet" href="styles.css" />
 </head>
-
 <body>
-    <div id="menu">
-        <h1>Выберите уровень</h1>
-        <button data-level="1">Уровень 1</button>
-        <button data-level="2">Уровень 2</button>
-        <button data-level="3">Уровень 3</button>
-    </div>
+  <!-- Главное меню (по умолчанию видно) -->
+  <div id="menu">
+    <h1>Выберите уровень</h1>
+    <!-- Кнопки выбора уровня (присвоен атрибут data-level) -->
+    <button data-level="1">Уровень 1</button>
+    <button data-level="2">Уровень 2</button>
+    <button data-level="3">Уровень 3</button>
+    <!-- Кнопка "Информация" для открытия модального окна -->
+    <button id="infoButton">Информация</button>
+  </div>
 
-    <div id="gameContainer">
-        <canvas id="gameCanvas" width="448" height="496"></canvas>
-    </div>
+  <!-- Контейнер игры (Canvas + кнопки мобильного управления) -->
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="448" height="496"></canvas>
+    <!-- Кнопки управления для мобильных устройств добавляются скриптом -->
+  </div>
 
-    <!-- Меню Game Over -->
-    <div id="gameOverMenu" >
-        <h1>Конец игры</h1>
-        <p id="finalScore"></p>
-        <button id="restartGame">Начать сначала</button>
-        <button id="selectLevel">Выбрать уровень</button>
-    </div>
+  <!-- Меню "Конец игры" (показывается, если у игрока закончились жизни) -->
+  <div id="gameOverMenu">
+    <h1>Конец игры</h1>
+    <p id="finalScore"></p>
+    <button id="restartGame">Начать сначала</button>
+    <button id="selectLevel">Выбрать уровень</button>
+  </div>
 
-    <script src="script.js"></script>
+  <!-- Меню «Уровень пройден» (новое). Показывается, когда все пеллеты съедены -->
+  <div id="levelCompleteMenu">
+    <h1>Уровень пройден!</h1>
+    <p id="completionScore"></p>
+    <button id="nextLevel">Следующий уровень</button>
+    <button id="selectLevel2">Выбрать уровень</button>
+  </div>
+
+  <!-- Модальное окно «Информация». Оверлей, закрывается крестиком -->
+  <div id="infoModal" class="modal">
+    <div class="modal-content">
+      <span id="closeModal" class="closeModal">&times;</span>
+      <p>Выполнил: Глухов Сергей ученик 9б класса 2024 по 2025 год</p>
+    </div>
+  </div>
+
+  <!-- Подключаем основной скрипт -->
+  <script src="script.js"></script>
 </body>
-
 </html>
